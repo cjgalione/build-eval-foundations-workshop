@@ -17,7 +17,7 @@ def main() -> None:
     click.echo("-" * 60)
 
     # One span wraps the entire multiturn session
-    with braintrust.start_span(name="stock-chat-session", span_attributes={"type": "task"}) as session:
+    with braintrust.start_span(name="stonks-sessions", span_attributes={"type": "task"}) as session:
         history: list[dict] = []
         turns = 0
 

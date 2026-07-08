@@ -1,0 +1,26 @@
+[project]
+name = "super-stonks"
+version = "0.1.0"
+description = "Braintrust advanced tracing workshop — a LangGraph stock-chat agent with seeding, evals, and online scoring."
+requires-python = ">=3.10"
+dependencies = [
+    "autoevals",
+    "braintrust",
+    "click",
+    "langgraph",
+    "openai",
+    "pydantic",
+    "python-dotenv",
+    "streamlit",
+    "yfinance",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# src-layout: the importable package is `super_stonks`, living under src/.
+# uv installs it (editable), so `import super_stonks...` works everywhere —
+# including under `streamlit run src/super_stonks/app.py` (no PYTHONPATH needed).
+[tool.hatch.build.targets.wheel]
+packages = ["src/super_stonks"]

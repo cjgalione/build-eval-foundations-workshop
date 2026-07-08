@@ -5,26 +5,31 @@ from braintrust import traced
 from braintrust.span_types import SpanTypeAttribute
 
 TOOLS_SPEC = [
-    {
-        "type": "function",
-        "function": {
-            "name": "get_stock_performance",
-            "description": (
-                "Get the price performance of a publicly traded stock for the day, "
-                "week, and year. Returns current price and percent change for each period."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "ticker": {
-                        "type": "string",
-                        "description": "Stock ticker symbol, e.g. AAPL, GOOGL, MSFT, TSLA",
-                    }
-                },
-                "required": ["ticker"],
-            },
-        },
-    },
+    # ─────────────────────────────────────────────────────────────────────────────
+    # THE GAP (workshop): get_stock_performance is the Yahoo/yfinance tool that pulls
+    # real price data. Uncomment this entry (and its route in agent.py::_invoke_tool)
+    # to show the feature change that closes the gap.
+    # {
+    #     "type": "function",
+    #     "function": {
+    #         "name": "get_stock_performance",
+    #         "description": (
+    #             "Get the price performance of a publicly traded stock for the day, "
+    #             "week, and year. Returns current price and percent change for each period."
+    #         ),
+    #         "parameters": {
+    #             "type": "object",
+    #             "properties": {
+    #                 "ticker": {
+    #                     "type": "string",
+    #                     "description": "Stock ticker symbol, e.g. AAPL, GOOGL, MSFT, TSLA",
+    #                 }
+    #             },
+    #             "required": ["ticker"],
+    #         },
+    #     },
+    # },
+    # ─────────────────────────────────────────────────────────────────────────────
     {
         "type": "function",
         "function": {
