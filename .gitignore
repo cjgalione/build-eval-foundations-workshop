@@ -30,3 +30,6 @@ env/
 
 # Logs
 *.log
+
+# Braintrust CLI local cache (auto-generated function runners)
+.bt/

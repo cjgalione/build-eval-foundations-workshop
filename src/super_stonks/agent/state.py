@@ -12,3 +12,4 @@ def _append(existing: list, new: list | dict) -> list:
 class AgentState(TypedDict, total=False):
     messages: Annotated[list, _append]
     model: str
+    tool_rounds: int  # tool-execution rounds so far this turn (capped in agent.py)

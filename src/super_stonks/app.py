@@ -10,10 +10,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from app.agent.config import get_braintrust_project_name, init_braintrust_logger
+from super_stonks.agent.config import get_braintrust_project_name, init_braintrust_logger
 
 
-APP_TITLE = "Auto Stocks"
+APP_TITLE = "Super Stonks"
 SAMPLE_PROMPTS = [
     "How has NVDA performed today, this week, and this year?",
     "Should I buy, hold, or sell MSFT right now?",
@@ -215,7 +215,7 @@ def _get_conversation_span():
     conversation_id = str(uuid.uuid4())
     st.session_state.conversation_id = conversation_id
     st.session_state.conversation_span = bt_logger.start_span(
-        name="stock-chat-conversation",
+        name="stonks-sessions",
         span_attributes={"type": "task"},
         metadata={
             "entrypoint": "streamlit",
@@ -273,10 +273,11 @@ def _run_agent(user_input: str) -> str:
     st.session_state.agent_messages.append({"role": "user", "content": user_input})
 
     conversation_span = _get_conversation_span()
-    from app.agent.agent import graph
+    from super_stonks.agent.agent import graph
 
     turn_number = st.session_state.turn_count + 1
-    with conversation_span.start_span(name=f"stock-chat-turn-{turn_number}", span_attributes={"type": "task"}) as span:
+    # 0-based turn_{n} to match the CLI (__main__.py) span naming
+    with conversation_span.start_span(name=f"turn_{st.session_state.turn_count}", span_attributes={"type": "task"}) as span:
         try:
             result = graph.invoke({"messages": st.session_state.agent_messages})
             st.session_state.agent_messages = result["messages"]
@@ -374,7 +375,7 @@ def _render_header() -> None:
 
 def _render_sidebar() -> None:
     with st.sidebar:
-        st.markdown("### Auto Stocks")
+        st.markdown("### Super Stonks")
         st.caption("Live stock analysis workspace")
 
         if st.button("New conversation", use_container_width=True):
