@@ -15,7 +15,7 @@ brew install gh                                          # gh (or: winget instal
 ## 2. Configure
 
 ```bash
-git clone git@github.com:braintrustdata/advanced-tracing-workshop.git && cd advanced-tracing-workshop
+git clone git@github.com:spencerseale/advanced-tracing-workshop.git && cd advanced-tracing-workshop
 make setup  # uv sync + creates .env
 ```
 
