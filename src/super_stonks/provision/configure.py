@@ -1,11 +1,12 @@
-"""Turn on the online automation for the grounded scorer (`make automations`).
+"""Turn on the presenter-only online response-quality automation (`make automations`).
 
 The bt CLI can't create online-scoring automations, so this hits the REST API
 (`PUT /v1/project_score`). Push the scorer first (`make push-scorer`), which registers
-`response_grounded_in_data` as a prompt scorer in your project.
+`price_response_completeness` as a prompt scorer in your project.
 
 The automation scores **turn spans** (where input = the user question, output = the
-reply — exactly what the grounded prompt judges) at 100% in your own project.
+reply) at 100% in the presenter project. It is a response-quality proxy, not a
+trace-level proof of tool grounding.
 """
 
 from __future__ import annotations
@@ -24,7 +25,7 @@ load_dotenv()
 API = os.environ.get("BRAINTRUST_API_URL", "https://api.braintrust.dev").rstrip("/")
 KEY = os.environ["BRAINTRUST_API_KEY"]
 PROJECT = os.environ["BRAINTRUST_DEFAULT_PROJECT"]
-SCORER_SLUG = "response_grounded_in_data"
+SCORER_SLUG = "price_response_completeness"
 _HEADERS = {"Authorization": f"Bearer {KEY}", "Content-Type": "application/json"}
 
 
@@ -58,8 +59,8 @@ def main() -> None:
     fn_id = _scorer_function_id(project_id)
     _req("PUT", "/v1/project_score", {
         "project_id": project_id,
-        "name": "grounded-in-tool-data",
-        "description": "Online grounding score on turn spans (workshop reveal).",
+        "name": "price-response-completeness",
+        "description": "Online response-quality proxy on turn spans (presenter demo).",
         "score_type": "online",
         "config": {
             "online": {
@@ -69,7 +70,7 @@ def main() -> None:
             }
         },
     })
-    print(f"[automations] online score 'grounded-in-tool-data' enabled on '{PROJECT}' (turn spans, 100%).")
+    print(f"[automations] online score 'price-response-completeness' enabled on '{PROJECT}' (turn spans, 100%).")
 
 
 if __name__ == "__main__":

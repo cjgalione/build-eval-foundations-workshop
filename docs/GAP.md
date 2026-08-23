@@ -13,9 +13,10 @@ LangGraph stock assistant. Realtime-price questions ("what's AAPL trading at?") 
 parametric knowledge — ungrounded and often wrong. That is *the gap*, and closing it
 is the workshop's before/after moment.
 
-The scorer `response_grounded_in_data` (in `src/super_stonks/evals/scorers.py`) measures
-whether the response cites specific prices/percentages that appear in tool output. With
-the tool off it scores low; closing the gap should move it up.
+The offline scorer `price_response_matches_tool_data` (in
+`src/super_stonks/evals/scorers.py`) measures whether the final answer states the
+current price returned by the traced tool. With the tool off it scores `0`; closing the
+gap should move it up.
 
 ## What to do (exactly two uncomments — do not reimplement anything)
 

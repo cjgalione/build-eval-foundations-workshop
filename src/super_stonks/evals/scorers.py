@@ -1,14 +1,14 @@
 """Scorer definitions for the Super Stonks agent.
 
-Two paths, one source of truth (`judge_prompts.py`):
+Two workshop paths:
 
 - **Online** scorers are registered as Braintrust *prompt* scorers in `push_assets.py`
   (no code here runs online).
-- **Offline** — this module builds `autoevals.LLMClassifier`s from the same prompt
-  strings, plus pure-Python code scorers, for use in the `Eval` (`qa_eval.py`).
+- **Offline** — this module includes LLM-as-judge examples plus a deterministic,
+  trace-scoped price/tool scorer for the workshop Eval (`qa_eval.py`).
 
-`response_grounded_in_data` is the grounding gap-detector — defined here for the offline
-experiment, but intentionally NOT pushed online until the workshop's reveal.
+`price_response_matches_tool_data` is the grounding gap-detector. The online UI scorer
+is deliberately named `price_response_completeness` because it does not inspect tools.
 """
 
 import re
@@ -21,10 +21,10 @@ from pydantic import BaseModel
 from .judge_prompts import (
     CONVERSATION_QUALITY_PROMPT,
     GRANULAR_SCORES,
-    GROUNDED_PROMPT,
     RESEARCH_VERDICT_PROMPT,
     SCOPE_ADHERENCE_PROMPT,
 )
+from .price_grounding import score_price_answer
 
 # ── Parameter models (scope: SpanParams = span-level, TraceParams = trace-level) ──
 
@@ -78,13 +78,7 @@ async def has_citations_header(input, output):
     return {"name": "has_citations_header", "score": 1.0 if present else 0.0}
 
 
-# ── LLM-judge scorers (offline) — built from the shared prompts ───────────────
-# Online counterparts are the Braintrust prompt scorers in push_assets.py.
-
-_grounded_classifier = LLMClassifier(
-    name="ResponseGrounded", prompt_template=GROUNDED_PROMPT,
-    choice_scores=GRANULAR_SCORES, use_cot=True, model="gpt-4o", client=AsyncOpenAI(),
-)
+# ── LLM-judge examples ───────────────────────────────────────────────────────
 _research_verdict_classifier = LLMClassifier(
     name="ResearchVerdictSound", prompt_template=RESEARCH_VERDICT_PROMPT,
     choice_scores=GRANULAR_SCORES, use_cot=True, model="gpt-4o",
@@ -99,16 +93,20 @@ _conversation_quality_classifier = LLMClassifier(
 )
 
 
-async def response_grounded_in_data(input, output):
-    """LLM-as-judge: the answer gives the concrete price/percentage figures asked for
-    (real market data) rather than deflecting. Works on input+output — no trace needed —
-    so the same prompt runs online (prompt scorer) and offline (this Eval)."""
-    result = await _grounded_classifier.eval_async(input=input or "", output=output or "")
-    return {
-        "name": "response_grounded_in_data",
-        "score": result.score,
-        "metadata": {"rationale": getattr(result, "metadata", None)},
-    }
+async def price_response_matches_tool_data(input, output, trace=None):
+    """Trace scorer: the final answer must state the price returned by the price tool."""
+    if trace is None:
+        return score_price_answer(str(output or ""), [])
+
+    tool_spans = await trace.get_spans(span_type=["tool"])
+    price_outputs = [
+        span.output
+        for span in tool_spans
+        if getattr(getattr(span, "span_attributes", None), "name", None) == "get_stock_performance"
+        or (isinstance(getattr(span, "span_attributes", None), dict)
+            and span.span_attributes.get("name") == "get_stock_performance")
+    ]
+    return score_price_answer(str(output or ""), price_outputs)
 
 
 async def research_verdict_sound(input, output):

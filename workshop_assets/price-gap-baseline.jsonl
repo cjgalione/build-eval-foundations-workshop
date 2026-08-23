@@ -1,0 +1,5 @@
+{"input":"What is AAPL trading at right now?","expected":null,"metadata":{"failure_category":"price_gap","failure_description":"The answer must state the fetched current price.","source":"workshop_starter"}}
+{"input":"Give me the current share price of TSLA.","expected":null,"metadata":{"failure_category":"price_gap","failure_description":"The answer must state the fetched current price.","source":"workshop_starter"}}
+{"input":"How much is NVDA stock today?","expected":null,"metadata":{"failure_category":"price_gap","failure_description":"The answer must state the fetched current price.","source":"workshop_starter"}}
+{"input":"What's the latest price on MSFT?","expected":null,"metadata":{"failure_category":"price_gap","failure_description":"The answer must state the fetched current price.","source":"workshop_starter"}}
+{"input":"Quote for GOOGL?","expected":null,"metadata":{"failure_category":"price_gap","failure_description":"The answer must state the fetched current price.","source":"workshop_starter"}}

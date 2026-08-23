@@ -1,4 +1,4 @@
-# AGENTS.md — Super Stonks (Braintrust advanced tracing workshop)
+# AGENTS.md — Super Stonks (Build Your Eval Foundations workshop)
 
 Guidance for coding agents working in this repo. **This is the single source of truth.**
 Codex reads this file natively; Claude Code reads the root `CLAUDE.md`, which imports
@@ -6,8 +6,8 @@ this file (`@AGENTS.md`). Put all guidance here.
 
 ## What this is
 
-A Braintrust workshop that walks the full loop — observe traces → cluster with Topics →
-build a scorer → run experiments → deploy an online score. The subject is **Super
+A Braintrust workshop that walks the full loop — observe traces → build a scorer → run
+experiments → deploy an online score. The subject is **Super
 Stonks**, a small LangGraph stock-chat agent instrumented with the Braintrust SDK.
 
 - **Docs:** `docs/PARTICIPANT.md` (the follow-along guide attendees run), `docs/WORKSHOP.md`
@@ -27,8 +27,8 @@ the missing tool, fetch live prices, "fill the gap", or ground the answers, foll
 src/super_stonks/
   app.py            # Streamlit UI  → `make agent`
   agent/            # LangGraph agent: agent.py, tools.py, prompts.py, config.py, state.py, __main__.py
-  evals/            # scorers.py (skeleton) + qa_eval.py (planned)
-  provision/, seed/ # planned (Topics/automations, seeding) — see docs/SEEDING_MILESTONES.md
+  evals/            # UI quality template + trace-grounding scorer + eval
+  provision/, seed/ # optional curation, presenter automation, and presenter seeding
 ```
 
 Imports are `super_stonks.*` (installed editable by `uv sync`, so no `PYTHONPATH`).
@@ -41,15 +41,13 @@ make agent            # Streamlit app
 make help             # all targets
 ```
 
-## Read the shared seed, write your own project
+## Presenter Topics seed versus attendee projects
 
-**Topics clustering + cluster investigation** read the **shared `super-stonks` project**
-(`--project super-stonks`, or `project_logs('<super-stonks project id>')`) — it's
-pre-seeded with thousands of traces; a user's own project only has the handful they
-generate locally, not enough to cluster. Everything a user **generates or writes** goes
-to their own `BRAINTRUST_DEFAULT_PROJECT`: local app/CLI traces (they view those with
-plain `bt view logs`), plus the curated dataset, experiments, and online score. So:
-Topics/clusters ⇒ `super-stonks`; my own traces + dataset + evals ⇒ the user's project.
+Topics clustering is a **presenter-only** demonstration on a separate seeded project.
+Attendees create a fresh, isolated `BRAINTRUST_DEFAULT_PROJECT` and work from their own
+traces plus the starter dataset. Do not require participant access to the seeded project.
+Everything an attendee generates or writes — traces, datasets, experiments, and optional
+scorers — stays in their own project.
 
 ## Investigating a Topics cluster (by name)
 
@@ -96,8 +94,9 @@ Topics cluster by name), use the `bt` CLI **against the shared `super-stonks` pr
 6. **Report the failure mode from the evidence** — e.g. inputs ask for X but the agent has
    no tool for X, so it deflects. (For this repo that's the price gap — see `docs/GAP.md`.)
 
-The curated dataset from this cluster is then created in the **user's own**
-`BRAINTRUST_DEFAULT_PROJECT` (write), not in `super-stonks`.
+The presenter may create a dataset from this cluster in a separate presenter project.
+Attendees instead use `workshop_assets/price-gap-baseline.jsonl` and may add selected
+traces from their own project.
 
 ### Creating the dataset — use the `bt` CLI, not the SDK
 
@@ -108,7 +107,7 @@ that here). Build the rows from `bt sql --json` piped through `jq` into JSONL, o
 line: `{"input": ..., "expected": ..., "metadata": {...}}` (metadata carries the baseline
 `broken_output`, failure category, and `source_trace_id`).
 
-Example row (first row of the `current-price-gap-offline` dataset in the user's project):
+Example row (first row of the `price-gap-baseline` dataset in the user's project):
 
 ```json
 {
@@ -118,10 +117,10 @@ Example row (first row of the `current-price-gap-offline` dataset in the user's 
     "broken_output": "I'm not able to provide the real-time price of TSLA stock directly. However, I can share some analysis regarding its performance.\n\nThe current investment analysis for Tesla (TSLA) indicates a **BUY** recommendation based on several signals:\n- **RSI (14)**: 47.7, which suggests it’s nearing the neutral range.\n- **50-day Moving Average vs 200-day Moving Average**: The 50-day moving average is currently below the 200-day moving average, indicating a potential downward trend.\n- **52-week Position**: TSLA is positioned at 53% of its 52-week range, implying it's performing moderately compared to its highest and lowest prices over the past year.\n- **Analyst Recommendation Mean**: 2.34 (on a scale where 1 is a strong buy and 5 is a strong sell), suggesting analysts tend to view it positively.\n\nOverall, while it's recommended as a buy, do consider the noted risks, including market volatility and further technical trends. For the latest price, I recommend checking a financial news site or stock market app.",
     "failure_category": "price_gap",
     "failure_description": "User asked for a current/live price or recent performance; agent has no price tool (get_stock_performance is disabled) so it either deflects (\"no real-time access\") or substitutes an analyze_stock_buy verdict — never returns the requested price.",
-    "source_project": "super-stonks",
+    "source_project": "attendee project",
     "source_span_name": "turn_0",
     "source_trace_id": "3a10c2bf07135888680b95ff82357f26",
-    "topic_cluster": "Current stock price analysis"
+    "topic_cluster": null
   }
 }
 ```
@@ -129,7 +128,7 @@ Example row (first row of the `current-price-gap-offline` dataset in the user's 
 Then:
 
 ```
-BRAINTRUST_PROFILE=workshop-advanced-tracing bt datasets create <name> \
+BRAINTRUST_PROFILE=workshop-advanced-tracing bt datasets create price-gap-baseline \
   --description "..." --file rows.jsonl -p "$BRAINTRUST_DEFAULT_PROJECT"
 ```
 
@@ -147,7 +146,7 @@ Use `bt datasets update/add <name> --file …` to upsert more rows, and
   emit this; any seed script must too.
 - **Config:** `.env` holds only secrets (`OPENAI_API_KEY`, `BRAINTRUST_API_KEY`).
   `BRAINTRUST_PROFILE` + `BRAINTRUST_DEFAULT_PROJECT` are shell exports (see
-  `docs/WORKSHOP.md §4.2`); the `bt` CLI and the Python code both read the project from
+  `docs/PARTICIPANT.md`); the `bt` CLI and the Python code both read the project from
   `BRAINTRUST_DEFAULT_PROJECT`. Org is always `workshop-advanced-tracing`.
 - **`bt` CLI auth:** the CLI is authenticated with an API token via `bt auth login`
   (stored in the profile / keychain), so it does **not** read `BRAINTRUST_API_KEY` from
@@ -155,7 +154,7 @@ Use `bt datasets update/add <name> --file …` to upsert more rows, and
   Streamlit, evals). Don't add `--env-file` to `bt` commands.
 - **Package management:** uv. Add deps to `pyproject.toml`; run via `uv run`.
 - **Env in bash (coding agents):** a human exports the vars once per session
-  (`docs/WORKSHOP.md §4.2`), but a coding agent's shell usually **resets between commands** —
+  (`docs/PARTICIPANT.md`), but a coding agent's shell usually **resets between commands** —
   exports don't persist. So pass what each command needs **inline**:
   - `bt` / `make` targets need the project: `BRAINTRUST_DEFAULT_PROJECT=super-stonks make seed-smoke`
     (and `BRAINTRUST_PROFILE=workshop-advanced-tracing` if the profile isn't already the active one).

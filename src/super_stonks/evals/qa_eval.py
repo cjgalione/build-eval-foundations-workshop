@@ -1,14 +1,16 @@
 """Offline experiment for the workshop — run with `bt eval`.
 
-Runs the agent over the curated gap dataset (in YOUR project) and scores each answer
-with the grounding judge. Run it twice to get the before/after:
+Runs the agent over the curated gap dataset (in YOUR project) and scores whether its
+final answer includes the exact current price returned by the traced price tool. Run it
+twice to get the before/after:
 
   1. tool still commented out  -> baseline experiment (low grounding)
   2. uncomment get_stock_performance (GAP.md) -> re-run -> grounding jumps
 
     bt eval src/super_stonks/evals/qa_eval.py
 
-Dataset name defaults to "realtime-price" (created in §9 / `make curate-dataset`);
+Dataset name defaults to "price-gap-baseline" (created in the workshop UI or with
+`make curate-dataset`);
 override with EVAL_DATASET. Project comes from BRAINTRUST_DEFAULT_PROJECT (your project).
 """
 
@@ -21,10 +23,10 @@ load_dotenv()  # OPENAI_API_KEY + BRAINTRUST_API_KEY (before importing the agent
 from braintrust import Eval, init_dataset
 
 from super_stonks.agent.agent import graph
-from super_stonks.evals.scorers import response_grounded_in_data
+from super_stonks.evals.scorers import price_response_matches_tool_data
 
 PROJECT = os.environ["BRAINTRUST_DEFAULT_PROJECT"]
-DATASET = os.environ.get("EVAL_DATASET", "realtime-price")
+DATASET = os.environ.get("EVAL_DATASET", "price-gap-baseline")
 
 
 def run(user_input) -> str:
@@ -49,5 +51,5 @@ Eval(
     PROJECT,
     data=init_dataset(PROJECT, DATASET),
     task=run,
-    scores=[response_grounded_in_data],
+    scores=[price_response_matches_tool_data],
 )

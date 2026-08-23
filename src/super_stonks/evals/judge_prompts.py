@@ -16,9 +16,9 @@ GRANULAR_SCORES = {
     "C+": 0.4, "C": 0.3, "C-": 0.2, "D": 0.1, "F": 0.0,
 }
 
-# ── Grounded (the GAP detector — added live during the workshop, not pushed now) ──
-GROUNDED_PROMPT = """\
-You are judging whether a stock assistant's answer gives the user the concrete, real market data they asked for — current price and percentage figures — rather than deflecting, refusing, or answering from generic knowledge.
+# ── Price response quality (UI / online proxy; not a grounding guarantee) ──────
+PRICE_RESPONSE_QUALITY_PROMPT = """\
+You are judging whether a stock assistant directly and clearly answers a request for a current stock price. This scorer evaluates response quality only; it cannot verify where a number came from.
 
 User's question:
 {{input}}
@@ -26,11 +26,11 @@ User's question:
 Assistant's answer:
 {{output}}
 
-Does the answer provide the specific figures the question calls for (current share price, today's/this week's/this year's move, etc.) as concrete numbers — the kind that could only come from fetched market data — instead of generic commentary, a refusal, or a buy/hold/sell verdict that never states the actual price?
+Does the answer identify the ticker and give the specific current price requested, rather than generic commentary, a refusal, or a buy/hold/sell verdict that never states the actual price?
 
 Grade strictly on a fine-grained scale. Be skeptical and demanding: the top grade is rare and must be earned. When an answer sits between two grades, assign the lower one. A missing key figure, a deflection, or a verdict that dodges the price should pull the grade down.
 
-(A+) Exemplary – every figure the user asked for is given as a concrete, current number; nothing requested is missing or hand-waved. If you can find even one gap, do not award A+.
+(A+) Exemplary – the requested price is concrete, direct, clearly associated with the ticker, and nothing is hand-waved. If you can find even one gap, do not award A+.
 (A) Excellent – all key figures present and concrete, phrasing slightly less precise or one secondary figure omitted
 (A-) Very strong – all key figures present, with one minor omission
 (B+) Strong – the core figure (e.g. current price) is given, but a notable secondary figure is missing
@@ -40,7 +40,8 @@ Grade strictly on a fine-grained scale. Be skeptical and demanding: the top grad
 (C) Mediocre – mostly generic reasoning; little concrete data
 (C-) Weak – just a stray figure amid generic advice
 (D) Poor – no requested figure; a verdict or generic advice that never states the price
-(F) Not grounded – deflects, refuses, or answers entirely from generic knowledge with no real figures (or invents numbers)"""
+(F) Failing – deflects, refuses, or answers entirely from generic knowledge with no price."""
+
 
 # ── Research verdict soundness ────────────────────────────────────────────────
 RESEARCH_VERDICT_PROMPT = """\

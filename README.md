@@ -1,80 +1,44 @@
-# Super Stonks — Advanced Tracing Workshop
+# Build Your Eval Foundations — Super Stonks
 
-A hands-on Braintrust workshop built around **Super Stonks**, a small LangGraph
-stock-chat agent instrumented with the Braintrust SDK. The agent has an *unknown
-issue* baked in — and the workshop is the story of finding and fixing it.
+A hands-on Braintrust workshop for turning agent behavior into measurable improvement.
+The exercise uses **Super Stonks**, a small LangGraph stock assistant with an
+intentional current-price gap.
 
-## The goal
+## The workshop loop
 
-Super Stonks looks like a helpful stock assistant. But somewhere in its behavior
-there's a recurring failure that users keep running into — one that isn't obvious
-until you look at the traces. You won't be told what it is up front; you'll
-uncover it the way you would in the real world.
+1. Observe a traced agent interaction.
+2. Turn a failure into a small dataset.
+3. Define quality criteria and run a baseline experiment.
+4. Close the gap and compare results.
+5. See an online score monitor new production traffic.
 
-Over the session you'll run the full **Braintrust flywheel** to discover and
-remediate that issue:
+The default attendee path is UI-first. Loop and a coding agent are optional advanced
+paths, not prerequisites. Topics is a presenter-only demonstration on a seeded project;
+each attendee creates and owns an isolated project in the workshop org.
 
-1. **Observe** production traces in a shared, pre-seeded project.
-2. **Cluster** them with Topics to surface a recurring failure pattern.
-3. **Curate** the affected traces into a dataset in your own project.
-4. **Score** them with a scorer and run a **baseline experiment**.
-5. **Close the gap** once you understand what's going wrong.
-6. **A/B test** the fixed agent against the baseline to prove the improvement.
-7. **Deploy** an online score so the same regression can't sneak back in.
+## Start here
 
-By the end you'll have run the loop end-to-end — from a surfaced production
-failure to a verified fix guarded by online scoring.
+- Attendees: [Participant guide](docs/PARTICIPANT.md)
+- Presenters: [Run-of-show and preflight](docs/WORKSHOP.md)
+- Room/setup screen: [Welcome](docs/WELCOME.md)
+- Optional code assets: [`workshop_assets/`](workshop_assets)
 
-## For participants
-
-**Follow [`docs/PARTICIPANT.md`](docs/PARTICIPANT.md).** It's the step-by-step
-guide you run top to bottom during the workshop: install, configure, run the
-agent, investigate Topics, build the dataset, score, close the gap, and validate.
-
-Before the session, the install steps also live on the welcome screen —
-[`docs/WELCOME.md`](docs/WELCOME.md).
-
-## For presenters
-
-Use these resources to set the workshop up again and run it:
-
-| Resource | Purpose |
-| --- | --- |
-| [`docs/WORKSHOP.md`](docs/WORKSHOP.md) | Presenter run-of-show — the `bt` CLI tour and the end-to-end flow, section by section. |
-| [`docs/SEEDING_MILESTONES.md`](docs/SEEDING_MILESTONES.md) | Build plan for provisioning the shared, pre-seeded `super-stonks` project (Topics + ~1,000 traces) and the trace/scorer design. |
-| [`docs/GAP.md`](docs/GAP.md) | The details of the intentional failure and exactly how to close it. Keep this one to yourself — it's the answer key. |
-| [`docs/WELCOME.md`](docs/WELCOME.md) | Attendee install/welcome screen. |
-| [`AGENTS.md`](AGENTS.md) | Single source of truth for coding-agent guidance, conventions, and the shared-seed vs. own-project split. |
-
-### Setup at a glance
-
-1. Provision the shared `super-stonks` project (traces + Topics) per
-   [`docs/SEEDING_MILESTONES.md`](docs/SEEDING_MILESTONES.md), leaving the
-   intentional failure in place (see [`docs/GAP.md`](docs/GAP.md)).
-2. Distribute the `OPENAI_API_KEY` and `BRAINTRUST_API_KEY` for the
-   `workshop-advanced-tracing` org.
-3. Walk participants through [`docs/PARTICIPANT.md`](docs/PARTICIPANT.md), using
-   [`docs/WORKSHOP.md`](docs/WORKSHOP.md) as your run-of-show.
-
-## The agent
-
-A LangGraph agent using OpenAI `gpt-4o-mini`, wrapped with `braintrust.wrap_openai`;
-market data comes from yfinance.
-
-```
-src/super_stonks/
-  app.py            # Streamlit UI  → `make agent`
-  agent/            # LangGraph agent: agent.py, tools.py, prompts.py, config.py, ...
-  evals/            # scorers.py + qa_eval.py
-```
-
-### Running locally
+## Local commands
 
 ```bash
-make setup   # uv sync + create .env
-make agent   # launch the Streamlit app
-make help    # all targets
+make setup
+make agent
+make help
 ```
 
-See [`AGENTS.md`](AGENTS.md) for conventions, the shared-seed vs. own-project
-split, and the coding-agent playbook.
+`BRAINTRUST_DEFAULT_PROJECT` is required and should be unique per attendee, for example
+`<your-name>-eval-foundations`.
+
+The hidden exercise answer is in [docs/GAP.md](docs/GAP.md): enable the already-written
+price tool by uncommenting its two marked blocks. Do not reveal it before the baseline.
+
+## Presenter pre-work
+
+Use a separate presenter project for seeded Topics traffic. `make prepare` enables Topics
+and generates 1,000 total traces (10 smoke traces plus 990 full traces). Do not use that
+project as an attendee workspace.
