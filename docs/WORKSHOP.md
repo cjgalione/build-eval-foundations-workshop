@@ -13,21 +13,34 @@
 5. In the presenter project only, run `make push-scorer` and `make automations`, then
    create fresh traffic and confirm `price_response_completeness` appears.
 
-## Three-hour flow
+## 90-minute flow
 
 | Time | Segment | Audience action |
 | --- | --- | --- |
-| 0–20 min | Setup | Install `uv`/`bt`, authenticate, create individual project |
-| 20–40 min | I do: observe + Topics | Watch seeded presenter project reveal the price gap |
-| 40–70 min | We do: traces + dataset | Create a local trace, import starter cases, inspect with Loop |
-| 70–100 min | We do: criteria | Edit/test the UI scorer template |
-| 100–130 min | Baseline + fix | Run baseline, re-enable two tool blocks, compare evals |
-| 130–150 min | I do: online score | Show the online completeness proxy and fresh scores |
-| 150–180 min | You do + Q&A | Add a case/refine a rubric; optional code or coding-agent lane |
+| 0–10 min | Setup | Verify `uv`/`bt`, authenticate, and create an individual project |
+| 10–24 min | I do: observe + Topics + advanced preview | Watch the seeded presenter project reveal the price gap, then briefly preview advanced Braintrust workflows participants can explore afterward |
+| 24–37 min | We do: traces + dataset | Create a local trace, import starter cases, and inspect with Loop |
+| 37–50 min | We do: criteria | Edit and test the UI scorer template |
+| 50–69 min | Baseline + fix | Run the baseline, re-enable two tool blocks, rerun, and compare experiments |
+| 69–79 min | I do: online score | Show the online completeness proxy and fresh scores |
+| 79–90 min | You do + Q&A | Add a case or refine a rubric; use the optional code or coding-agent lane if desired |
+
+Treat the installation steps in `docs/WELCOME.md` as pre-work so the setup block is a
+verification and recovery window, not the first time attendees install dependencies.
+Have the seeded Topics project, scorer editor, baseline/fixed experiments, and online
+score open in separate tabs before the session. Keep transitions hard: each timebox
+includes its UI navigation and explanation.
+
+The advanced preview is intentionally presenter-led. Use it to show the ceiling — for
+example, trace-level or multi-turn scoring, human review, or a broader production
+monitoring workflow — without adding those concepts to the beginner hands-on path.
+Point interested participants to follow-up material or office hours.
 
 ## Teaching notes
 
 - Topics is discovery at scale; it is not a prerequisite for the attendee exercise.
+- The workshop is a beginner foundations session. Advanced examples in the opening
+  demonstration are previews, not participant requirements.
 - Separate a **quality rubric** (subjective UI LLM judge) from a **grounding check**
   (deterministic, trace-scoped comparison against a tool result).
 - Be precise about online scoring: `price_response_completeness` is useful monitoring,
