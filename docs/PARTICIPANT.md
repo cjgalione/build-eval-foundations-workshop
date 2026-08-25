@@ -22,7 +22,7 @@ Authenticate the CLI with the issued Braintrust credential, then give yourself a
 isolated project name:
 
 ```bash
-bt auth login
+bt login
 export BRAINTRUST_PROFILE="workshop-advanced-tracing"
 export BRAINTRUST_DEFAULT_PROJECT="<your-name>-eval-foundations"
 ```

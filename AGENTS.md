@@ -148,7 +148,7 @@ Use `bt datasets update/add <name> --file …` to upsert more rows, and
   `BRAINTRUST_PROFILE` + `BRAINTRUST_DEFAULT_PROJECT` are shell exports (see
   `docs/PARTICIPANT.md`); the `bt` CLI and the Python code both read the project from
   `BRAINTRUST_DEFAULT_PROJECT`. Org is always `workshop-advanced-tracing`.
-- **`bt` CLI auth:** the CLI is authenticated with an API token via `bt auth login`
+- **`bt` CLI auth:** the CLI is authenticated with an API token via `bt login`
   (stored in the profile / keychain), so it does **not** read `BRAINTRUST_API_KEY` from
   `.env`. That `.env` value exists only for the **Python Braintrust SDK** (agent,
   Streamlit, evals). Don't add `--env-file` to `bt` commands.
