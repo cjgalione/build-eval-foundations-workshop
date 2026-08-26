@@ -277,7 +277,11 @@ def _run_agent(user_input: str) -> str:
 
     turn_number = st.session_state.turn_count + 1
     # 0-based turn_{n} to match the CLI (__main__.py) span naming
-    with conversation_span.start_span(name=f"turn_{st.session_state.turn_count}", span_attributes={"type": "task"}) as span:
+    span_name = f"turn_{st.session_state.turn_count}"
+    # Advance the counter now, before invoke() can fail — otherwise a retry after a
+    # failed turn reuses this span name, producing two turn_N spans in one conversation.
+    st.session_state.turn_count = turn_number
+    with conversation_span.start_span(name=span_name, span_attributes={"type": "task"}) as span:
         try:
             result = graph.invoke({"messages": st.session_state.agent_messages})
             st.session_state.agent_messages = result["messages"]
@@ -285,7 +289,6 @@ def _run_agent(user_input: str) -> str:
             new_messages = st.session_state.agent_messages[previous_message_count:]
             st.session_state.last_tool_names = _extract_tool_names(new_messages)
             reply = _extract_assistant_reply(st.session_state.agent_messages)
-            st.session_state.turn_count += 1
 
             span.log(
                 input=user_input,
@@ -312,6 +315,9 @@ def _run_agent(user_input: str) -> str:
             st.session_state.last_trace_status = "Conversation trace updated"
             return reply
         except Exception as exc:
+            # Drop the user message appended above — otherwise the next turn sends the
+            # LLM two consecutive user messages with no assistant reply between them.
+            st.session_state.agent_messages = st.session_state.agent_messages[:previous_message_count]
             span.log(
                 input=user_input,
                 output={"error": f"{type(exc).__name__}: {exc}"},
