@@ -79,8 +79,8 @@ def agent_node(state: AgentState) -> dict:
 def _invoke_tool(fn_name: str, fn_args: dict) -> dict:
     # THE GAP (workshop): route disabled alongside the commented-out tool spec in
     # tools.py. Uncomment both to close the gap and let the agent fetch real prices.
-    # if fn_name == "get_stock_performance":
-    #     return get_stock_performance(**fn_args)
+    if fn_name == "get_stock_performance":
+        return get_stock_performance(**fn_args)
     if fn_name == "analyze_stock_buy":
         return analyze_stock_buy(**fn_args)
     return {"error": f"Unknown tool: {fn_name}"}
