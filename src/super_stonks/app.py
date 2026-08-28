@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import uuid
 from typing import Any
@@ -11,6 +12,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from super_stonks.agent.config import get_braintrust_project_name, init_braintrust_logger
+from super_stonks.evals.price_grounding import score_price_answer
+from super_stonks.evals.scorers import has_citations_header
 
 
 APP_TITLE = "Super Stonks"
@@ -167,6 +170,34 @@ def _configure_page() -> None:
                 background: #374151;
             }
 
+            .score-badges {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.4rem;
+                margin-top: 0.6rem;
+            }
+
+            .score-badge {
+                border-radius: 999px;
+                padding: 0.2rem 0.6rem;
+                font-size: 0.72rem;
+                font-weight: 650;
+                border: 1px solid transparent;
+                white-space: nowrap;
+            }
+
+            .score-badge.score-good {
+                color: var(--accent);
+                background: var(--accent-soft);
+                border-color: var(--accent-line);
+            }
+
+            .score-badge.score-bad {
+                color: #fca5a5;
+                background: rgba(248, 113, 113, 0.12);
+                border-color: rgba(248, 113, 113, 0.32);
+            }
+
             .empty-state {
                 border: 1px dashed var(--line);
                 border-radius: 8px;
@@ -268,7 +299,94 @@ def _extract_tool_names(messages: list[dict[str, Any]]) -> list[str]:
     return tool_names
 
 
-def _run_agent(user_input: str) -> str:
+# ── Live in-app scoring ───────────────────────────────────────────────────────
+#
+# Problem: the deterministic scorers in evals/scorers.py only ever ran offline
+# (bt eval) or as an async online scorer on Braintrust's backend — a user or
+# presenter watching the Streamlit app had no way to see whether a given answer
+# was actually grounded until they went and looked at a trace or an experiment
+# later. This section closes that gap by scoring each turn *in the same request*
+# that produces it and rendering the result as a badge under the reply.
+#
+# Design principles:
+#   1. Single source of truth — reuse the existing scorer implementations
+#      (score_price_answer, has_citations_header) instead of re-deriving the
+#      grading logic, so the live badge and the offline eval can never drift.
+#   2. Instant over exhaustive — compute scores synchronously from data already
+#      in hand (the LangGraph message list) rather than polling Braintrust's
+#      async online scorer, trading an LLM-judge score for a sub-second one.
+#   3. Log once, show twice — every computed score is written to the Braintrust
+#      span via span.log(scores=...) *and* rendered in the UI, so the same
+#      number is visible live in the app and later in the Braintrust dashboard.
+#   4. Don't hide the gap — if the price tool wasn't called this turn, the score
+#      is still 0.0. The point of this workshop is to make that failure visible,
+#      not to suppress it.
+
+
+def _parse_tool_results(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Pair each `role: tool` message with the function name from its tool call.
+
+    LangGraph's state stores tool calls and their results as separate messages
+    (an assistant message with `tool_calls`, followed by `role: tool` replies
+    keyed by `tool_call_id`) — this re-joins them so scoring can ask "what did
+    tool X actually return this turn?" without needing a Braintrust trace object.
+    """
+    tool_names_by_id: dict[str, str] = {}
+    for message in messages:
+        for tool_call in message.get("tool_calls", []) or []:
+            tool_names_by_id[tool_call["id"]] = tool_call["function"]["name"]
+
+    results = []
+    for message in messages:
+        if message.get("role") != "tool":
+            continue
+        try:
+            output = json.loads(message.get("content") or "{}")
+        except json.JSONDecodeError:
+            output = {}
+        results.append({"name": tool_names_by_id.get(message.get("tool_call_id")), "output": output})
+    return results
+
+
+def _score_turn(user_input: str, reply: str, new_messages: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """Instant, local versions of the deterministic scorers in evals/scorers.py.
+
+    These read tool outputs straight from the LangGraph message list instead of a
+    Braintrust trace, so they can score the turn synchronously in the same request
+    instead of waiting on an async online scorer.
+    """
+    tool_results = _parse_tool_results(new_messages)
+
+    # price_response_matches_tool_data: does the final answer state the exact
+    # price the (possibly disabled) price tool returned this turn? Reuses the
+    # same score_price_answer() the offline eval (qa_eval.py) grades with.
+    price_outputs = [r["output"] for r in tool_results if r["name"] == "get_stock_performance"]
+    price_score = score_price_answer(reply, price_outputs)
+
+    # tool_returned_data: mirrors scorers.tool_returned_data's trace-based logic,
+    # but reads the tool output already sitting in `new_messages` instead of
+    # awaiting trace.get_spans() — no Braintrust round trip needed.
+    has_error = any("error" in r["output"] for r in tool_results)
+    has_price = any("current_price" in r["output"] for r in tool_results)
+    tool_data_score = {
+        "name": "tool_returned_data",
+        "score": 1.0 if (has_price and not has_error) else 0.0,
+        "metadata": {"has_error": has_error, "has_price": has_price},
+    }
+
+    # has_citations_header is already trace-independent in scorers.py, so call
+    # it directly (asyncio.run: it's defined async but does no I/O, and
+    # Streamlit's request handling isn't already inside an event loop here).
+    citations_score = asyncio.run(has_citations_header(input=user_input, output=reply))
+
+    return {
+        "price_response_matches_tool_data": price_score,
+        "tool_returned_data": tool_data_score,
+        "has_citations_header": citations_score,
+    }
+
+
+def _run_agent(user_input: str) -> tuple[str, dict[str, dict[str, Any]]]:
     previous_message_count = len(st.session_state.agent_messages)
     st.session_state.agent_messages.append({"role": "user", "content": user_input})
 
@@ -286,16 +404,19 @@ def _run_agent(user_input: str) -> str:
             st.session_state.last_tool_names = _extract_tool_names(new_messages)
             reply = _extract_assistant_reply(st.session_state.agent_messages)
             st.session_state.turn_count += 1
+            scores = _score_turn(user_input, reply, new_messages)
 
             span.log(
                 input=user_input,
                 output=reply,
+                scores={name: result["score"] for name, result in scores.items()},
                 metadata={
                     "entrypoint": "streamlit",
                     "conversation_id": st.session_state.conversation_id,
                     "turn": st.session_state.turn_count,
                     "tool_names": st.session_state.last_tool_names,
                     "message_count": len(st.session_state.agent_messages),
+                    "scores": scores,
                 },
             )
             conversation_span.log(
@@ -310,7 +431,7 @@ def _run_agent(user_input: str) -> str:
                 },
             )
             st.session_state.last_trace_status = "Conversation trace updated"
-            return reply
+            return reply, scores
         except Exception as exc:
             span.log(
                 input=user_input,
@@ -406,6 +527,31 @@ def _render_sidebar() -> None:
         st.caption(st.session_state.last_trace_status)
 
 
+# Human-readable labels for the scorer names returned by _score_turn(). These are
+# deliberately binary (0.0/1.0) checks, so the badge only needs pass/fail color,
+# not a gradient — see the .score-good / .score-bad CSS above.
+_SCORE_LABELS = {
+    "price_response_matches_tool_data": "Price grounded",
+    "tool_returned_data": "Tool data OK",
+    "has_citations_header": "Has citations",
+}
+
+
+def _render_score_badges(scores: dict[str, dict[str, Any]]) -> None:
+    """Render one colored pill per score, skipping any that weren't computed."""
+    badges = []
+    for name, result in scores.items():
+        score = result.get("score")
+        if score is None:
+            continue
+        label = _SCORE_LABELS.get(name, name)
+        css_class = "score-good" if score >= 1.0 else "score-bad"
+        badges.append(f'<span class="score-badge {css_class}">{label}: {score:.2f}</span>')
+
+    if badges:
+        st.markdown(f'<div class="score-badges">{"".join(badges)}</div>', unsafe_allow_html=True)
+
+
 def _render_chat_history() -> None:
     if not st.session_state.display_messages:
         st.markdown(
@@ -421,6 +567,8 @@ def _render_chat_history() -> None:
     for message in st.session_state.display_messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
+            if message.get("scores"):
+                _render_score_badges(message["scores"])
 
 
 def _consume_prompt() -> str | None:
@@ -454,18 +602,21 @@ def main() -> None:
     with st.chat_message("user"):
         st.markdown(prompt)
 
+    scores: dict[str, dict[str, Any]] | None = None
     with st.chat_message("assistant"):
         with st.spinner("Running market analysis..."):
             try:
-                reply = _run_agent(prompt)
+                reply, scores = _run_agent(prompt)
             except Exception as exc:
                 reply = (
                     "I could not complete the analysis because the agent raised an error. "
                     f"`{type(exc).__name__}: {exc}`"
                 )
         st.markdown(reply)
+        if scores:
+            _render_score_badges(scores)
 
-    st.session_state.display_messages.append({"role": "assistant", "content": reply})
+    st.session_state.display_messages.append({"role": "assistant", "content": reply, "scores": scores})
     st.rerun()
 
 
