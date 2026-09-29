@@ -36,14 +36,24 @@ def main() -> None:
             history.append({"role": "user", "content": user_input})
 
             with braintrust.start_span(name=f"turn_{turns}", span_attributes={"type": "task"}) as turn_span:
-                result = graph.invoke({"messages": history})
-                history = result["messages"]
-                reply = next(
-                    (m["content"] for m in reversed(history) if m.get("role") == "assistant" and m.get("content")),
-                    "(no response)",
-                )
-                turn_span.log(input=user_input, output=reply)
+                try:
+                    result = graph.invoke({"messages": history})
+                except Exception as exc:
+                    # Roll back the unanswered user message so a retry doesn't send two
+                    # user turns in a row; keep the session alive instead of crashing.
+                    history.pop()
+                    error = f"{type(exc).__name__}: {exc}"
+                    turn_span.log(input=user_input, output={"error": error})
+                    reply = f"(error — please try again) {error}"
+                else:
+                    history = result["messages"]
+                    reply = next(
+                        (m["content"] for m in reversed(history) if m.get("role") == "assistant" and m.get("content")),
+                        "(no response)",
+                    )
+                    turn_span.log(input=user_input, output=reply)
                 braintrust.flush()
+            # Advance even on failure so a retry gets a distinct turn_{n} span name.
             turns += 1
 
             print(f"\nAssistant: {reply}")
