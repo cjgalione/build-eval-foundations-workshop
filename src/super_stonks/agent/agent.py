@@ -91,8 +91,14 @@ def tool_node(state: AgentState) -> dict:
     results = []
     for tc in last.get("tool_calls", []):
         fn_name = tc["function"]["name"]
-        fn_args = json.loads(tc["function"]["arguments"])
-        result = _invoke_tool(fn_name, fn_args)
+        # A tool failure (e.g. Yahoo rate-limiting, malformed arguments) goes back to the
+        # model as an error result instead of crashing the whole turn.
+        try:
+            fn_args = json.loads(tc["function"]["arguments"])
+            result = _invoke_tool(fn_name, fn_args)
+        except Exception as exc:
+            logger.warning("tool %s failed: %s", fn_name, exc)
+            result = {"error": f"{type(exc).__name__}: {exc}"}
         results.append({"role": "tool", "content": json.dumps(result), "tool_call_id": tc["id"]})
 
     return {"messages": results, "tool_rounds": state.get("tool_rounds", 0) + 1}
